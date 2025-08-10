@@ -1,3 +1,33 @@
+# ****** ComfyUI_NoxinNodes_Extended | Save Prompt History ******
+#
+# Creator: Alex Furer - Co-Creator(s): Qwen3 and Claude AI - Original author: Noxin https://github.com/noxinias/ComfyUI_NoxinNodes
+#
+# Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI_NoxinNodes_Extended/issues
+#
+# LICENSE: MIT License
+#
+# v0.0.01
+#   - Initial release
+#
+# Description:
+# TBD
+#
+# Usage:
+# Simple usage:
+# - Use it!
+#
+# Changelog:
+# v0.0.01
+# - Inital Git Release#
+#
+# Feature Requests / Wet Dreams
+# - 
+
+import csv
+import os
+from datetime import datetime
+import uuid
+
 class NoxinPromptSave:
     def __init__(self):
         pass
@@ -8,24 +38,32 @@ class NoxinPromptSave:
         return {
             "required": {
                 "newprompt": ("STRING", {"default": "","multiline": True}),
-                "librarynum": ("INT", {"default": 1, "min": 1, "max": 6, "step": 1}),
+                "filename": ("STRING", {"default": "Global_Positive", "multiline": False}),
                 "saveprompt": (["on", "off"], ),
+                "custom_path": ("STRING", {"default": "AF-Prompt Archive", "multiline": False}),
+            },
+            "optional": {
+                "generation_id": ("STRING", {"default": "", "multiline": False}),
             },
         }
 
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = ("STRING", "STRING",)
+    RETURN_NAMES = ("prompt", "generation_id",)
 
     FUNCTION = "main"
     OUTPUT_NODE = True
     CATEGORY = "NoxinNodes"
 
-    def main(self, newprompt, saveprompt, librarynum):      
+    def main(self, newprompt, filename, saveprompt, custom_path, generation_id=""):      
         outStr = newprompt
         
+        # Generate or use existing generation_id
+        if not generation_id.strip():
+            generation_id = str(uuid.uuid4())[:8]  # Short UUID for readability
+        
         if saveprompt == "on" and newprompt != "" and newprompt != "Empty Library":   
-            libraryFile = "promptlibrary" + str(librarynum) + ".txt"
+            csv_filename = filename.strip() + ".csv"
             
-            import os
             try:
                 # Import ComfyUI's folder_paths to get the actual output directory
                 import folder_paths
@@ -36,26 +74,32 @@ class NoxinPromptSave:
                 comfyui_root = os.path.dirname(os.path.dirname(my_dir))
                 output_dir = os.path.join(comfyui_root, "output")
             
-            library_path = os.path.join(output_dir, "AF-Prompt Archive")
+            library_path = os.path.join(output_dir, custom_path.strip())
             os.makedirs(library_path, exist_ok=True)  # Create directory if it doesn't exist
-            library_path = os.path.join(library_path, libraryFile)        
+            csv_file_path = os.path.join(library_path, csv_filename)
             
-            # Read existing prompts, create empty list if file doesn't exist
-            existing_prompts = []
-            if os.path.exists(library_path):
-                with open(library_path, "r") as f:
-                    content = f.read()
-                    # Split by double newlines to separate individual prompts
-                    existing_prompts = [p.replace("\\n", "\n") for p in content.split("||PROMPT_END||\n") if p.strip()]
+            # Check if CSV file exists and has headers
+            file_exists = os.path.exists(csv_file_path)
             
-            # Check if this exact prompt already exists
-            if newprompt in existing_prompts:
-                print("Noxin Prompt Save: Prompt already exists")
-            else:
-                print("Noxin Prompt Save: Adding new prompt")
-                # Save the prompt with newlines escaped and add delimiter
-                prompt_to_save = newprompt.replace("\n", "\\n") + "||PROMPT_END||\n"
-                with open(library_path, "a+") as f:
-                    f.write(prompt_to_save)               
+            try:
+                with open(csv_file_path, "a", newline='', encoding='utf-8') as csvfile:
+                    fieldnames = ['timestamp', 'generation_id', 'prompt_text']
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    
+                    # Write header if file is new
+                    if not file_exists:
+                        writer.writeheader()
+                    
+                    # Write the prompt data
+                    writer.writerow({
+                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        'generation_id': generation_id,
+                        'prompt_text': newprompt.replace('\n', '\\n')  # Escape newlines for CSV
+                    })
+                    
+                print(f"Noxin Prompt Save: Saved prompt to {csv_filename} with ID {generation_id}")
                 
-        return (outStr,)
+            except Exception as e:
+                print(f"Noxin Prompt Save: Error saving to CSV - {str(e)}")
+                
+        return (outStr, generation_id,)
