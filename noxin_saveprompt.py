@@ -40,17 +40,22 @@ class NoxinPromptSave:
             os.makedirs(library_path, exist_ok=True)  # Create directory if it doesn't exist
             library_path = os.path.join(library_path, libraryFile)        
             
-            # Read existing lines, create empty list if file doesn't exist
-            lines = []
+            # Read existing prompts, create empty list if file doesn't exist
+            existing_prompts = []
             if os.path.exists(library_path):
-                lines = open(library_path, "r").read().splitlines()
+                with open(library_path, "r") as f:
+                    content = f.read()
+                    # Split by double newlines to separate individual prompts
+                    existing_prompts = [p.replace("\\n", "\n") for p in content.split("||PROMPT_END||\n") if p.strip()]
             
-            if newprompt in lines:
+            # Check if this exact prompt already exists
+            if newprompt in existing_prompts:
                 print("Noxin Prompt Save: Prompt already exists")
             else:
                 print("Noxin Prompt Save: Adding new prompt")
-                f = open(library_path, "a+")
-                f.write(newprompt + "\n")
-                f.close()               
+                # Save the prompt with newlines escaped and add delimiter
+                prompt_to_save = newprompt.replace("\n", "\\n") + "||PROMPT_END||\n"
+                with open(library_path, "a+") as f:
+                    f.write(prompt_to_save)               
                 
         return (outStr,)
