@@ -1,4 +1,4 @@
-# ComfyUI_NoxinNodes
+# ComfyUI_NoxinNodes (Refactoring atm)
 Utility nodes for ComfyUI that I created for me but am happy to share.
 
 noxin_chimenode:
